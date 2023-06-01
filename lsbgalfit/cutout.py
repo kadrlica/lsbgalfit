@@ -10,20 +10,168 @@ import copy
 import numpy as np
 import logging
 import warnings
+from astropy.stats import SigmaClip
+import matplotlib.pyplot as plt
 
 from scipy import ndimage
 
 from astropy.io import fits as pyfits
 from astropy.wcs import WCS
-from astropy.stats import sigma_clipped_stats
+#from astropy.stats import sigma_clipped_stats
 from astropy.nddata import Cutout2D
 warnings.simplefilter('ignore', UserWarning)
+#from astropy.utils.compat.optional_deps import HAS_BOTTLENECK
 
 import galsim
 from galsim.des.des_psfex import DES_PSFEx
 
 BANDS = ['g','r','i','z','Y','det']
 KEYWORDS = ['TILENAME','BAND','FILTER','MAGZERO','DESFNAME','UNITNAME','ATTNUM','REQNUM']
+
+# Monkeypatch for sigma_clipped_stats
+def sigma_clipped_stats(
+    data,
+    mask=None,
+    mask_value=None,
+    sigma=3.0,
+    sigma_lower=None,
+    sigma_upper=None,
+    maxiters=5,
+    cenfunc="median",
+    stdfunc="std",
+    std_ddof=0,
+    axis=None,
+    grow=False,
+):
+    """
+    Calculate sigma-clipped statistics on the provided data.
+
+    Parameters
+    ----------
+    data : array-like or `~numpy.ma.MaskedArray`
+        Data array or object that can be converted to an array.
+
+    mask : `numpy.ndarray` (bool), optional
+        A boolean mask with the same shape as ``data``, where a `True`
+        value indicates the corresponding element of ``data`` is masked.
+        Masked pixels are excluded when computing the statistics.
+
+    mask_value : float, optional
+        A data value (e.g., ``0.0``) that is ignored when computing the
+        statistics. ``mask_value`` will be masked in addition to any
+        input ``mask``.
+
+    sigma : float, optional
+        The number of standard deviations to use for both the lower
+        and upper clipping limit. These limits are overridden by
+        ``sigma_lower`` and ``sigma_upper``, if input. The default is 3.
+
+    sigma_lower : float or None, optional
+        The number of standard deviations to use as the lower bound for
+        the clipping limit. If `None` then the value of ``sigma`` is
+        used. The default is `None`.
+
+    sigma_upper : float or None, optional
+        The number of standard deviations to use as the upper bound for
+        the clipping limit. If `None` then the value of ``sigma`` is
+        used. The default is `None`.
+
+    maxiters : int or None, optional
+        The maximum number of sigma-clipping iterations to perform or
+        `None` to clip until convergence is achieved (i.e., iterate
+        until the last iteration clips nothing). If convergence is
+        achieved prior to ``maxiters`` iterations, the clipping
+        iterations will stop. The default is 5.
+
+    cenfunc : {'median', 'mean'} or callable, optional
+        The statistic or callable function/object used to compute
+        the center value for the clipping. If using a callable
+        function/object and the ``axis`` keyword is used, then it must
+        be able to ignore NaNs (e.g., `numpy.nanmean`) and it must have
+        an ``axis`` keyword to return an array with axis dimension(s)
+        removed. The default is ``'median'``.
+
+    stdfunc : {'std', 'mad_std'} or callable, optional
+        The statistic or callable function/object used to compute the
+        standard deviation about the center value. If using a callable
+        function/object and the ``axis`` keyword is used, then it must
+        be able to ignore NaNs (e.g., `numpy.nanstd`) and it must have
+        an ``axis`` keyword to return an array with axis dimension(s)
+        removed. The default is ``'std'``.
+
+    std_ddof : int, optional
+        The delta degrees of freedom for the standard deviation
+        calculation. The divisor used in the calculation is ``N -
+        std_ddof``, where ``N`` represents the number of elements. The
+        default is 0.
+
+    axis : None or int or tuple of int, optional
+        The axis or axes along which to sigma clip the data. If `None`,
+        then the flattened data will be used. ``axis`` is passed to the
+        ``cenfunc`` and ``stdfunc``. The default is `None`.
+
+    grow : float or `False`, optional
+        Radius within which to mask the neighbouring pixels of those
+        that fall outwith the clipping limits (only applied along
+        ``axis``, if specified). As an example, for a 2D image a value
+        of 1 will mask the nearest pixels in a cross pattern around each
+        deviant pixel, while 1.5 will also reject the nearest diagonal
+        neighbours and so on.
+
+    Notes
+    -----
+    The best performance will typically be obtained by setting
+    ``cenfunc`` and ``stdfunc`` to one of the built-in functions
+    specified as as string. If one of the options is set to a string
+    while the other has a custom callable, you may in some cases see
+    better performance if you have the `bottleneck`_ package installed.
+
+    .. _bottleneck:  https://github.com/pydata/bottleneck
+
+    Returns
+    -------
+    mean, median, stddev : float
+        The mean, median, and standard deviation of the sigma-clipped
+        data.
+
+    See Also
+    --------
+    SigmaClip, sigma_clip
+    """
+    if mask is not None:
+        data = np.ma.MaskedArray(data, mask)
+    if mask_value is not None:
+        data = np.ma.masked_values(data, mask_value)
+
+    if isinstance(data, np.ma.MaskedArray) and data.mask.all():
+        return np.ma.masked, np.ma.masked, np.ma.masked
+
+    sigclip = SigmaClip(
+        sigma=sigma,
+        sigma_lower=sigma_lower,
+        sigma_upper=sigma_upper,
+        maxiters=maxiters,
+        cenfunc=cenfunc,
+        stdfunc=stdfunc,
+    )
+    data_clipped = sigclip(
+        data, axis=axis, masked=False, return_bounds=False, copy=True
+    )
+
+    #if HAS_BOTTLENECK:
+        #mean = _nanmean(data_clipped, axis=axis)
+       # median = _nanmedian(data_clipped, axis=axis)
+        #std = _nanstd(data_clipped, ddof=std_ddof, axis=axis)
+    if True:  # pragma: no cover
+        mean = np.nanmean(data_clipped, axis=axis)
+        median = np.nanmedian(data_clipped, axis=axis)
+        std = np.nanstd(data_clipped, ddof=std_ddof, axis=axis)
+
+    return mean, median, std
+import astropy.stats
+
+astropy.stats.sigma_clipped_stats = sigma_clipped_stats
+from astropy.stats import sigma_clipped_stats
 
 def angsep(lon1,lat1,lon2,lat2):
     """
@@ -95,35 +243,36 @@ def clear_segmap(segmap,obj,cat,bands,custom=None):
             segmap[idx] = 0
         except KeyError: pass
 
-    if True:
-        return segmap
+    #if True:
+        #return segmap
 
     # Then try to figure out which siblings to clear
     group = cat[cat['LSBG_COADD_OBJECT_ID'] == obj['COADD_OBJECT_ID']]
     ngroup = len(group)
+    logging.debug(f'Found {ngroup} objects in group...')
 
     # Only deal with large objects
     flux_radius = np.max([obj[f'FLUX_RADIUS_{band.upper()}'] for band in bands])
     if flux_radius < 15:
         logging.debug("Skipping group...")
-        logging.debug("  flux_radius={flux_radius:.2f}")
+        logging.debug(f"flux_radius={flux_radius:.2f}")
         return segmap
                       
     # Only deal with objects with lots of siblings
-    if ngroup < 4: 
+    if ngroup < 3: 
         logging.debug("Skipping group...")
-        logging.debug("  Ngroup = {ngroup}")
+        logging.debug(f"  Ngroup = {ngroup}")
         return segmap
 
     for o in group:
         # Ignore likely stars
-        if np.abs(o['EXTENDED_CLASS_MASH_SOF']) < 3: 
-            logging.debug(f"  extended_class_mash_sof={o['EXTENDED_CLASS_MASH_SOF']}")
+        if np.abs(o['EXT_MASH']) < 3: 
+            logging.debug(f"  extended_class_mash_sof={o['EXT_MASH']}")
             continue
         
         # Ignore small objects
-        if np.sqrt(np.abs(o['SOF_CM_T'])) < 5: 
-            logging.debug(f"  sof_cm_t={o['SOF_CM_T']:.2f}")
+        if np.sqrt(np.abs(o['BDF_T'])) < 5: 
+            logging.debug(f"  bdf_t={o['BDF_T']:.2f}")
             continue
 
         # Separation too large
@@ -150,6 +299,8 @@ def find_sources(data, mask, nsigma = 10, mincts = 25):
     label, nlabel = ndimage.label(search > nsigma*stddev)
     uid, cts = np.unique(label, return_counts=True)
     uid,cts = uid[1:],cts[1:]
+
+    logging.info("Masking %s bright sources"%( (cts>mincts).sum() ))
     out = np.in1d(label,uid[cts > mincts]).reshape(label.shape) > 0
     out = ndimage.binary_dilation(out)
     
@@ -158,6 +309,8 @@ def find_sources(data, mask, nsigma = 10, mincts = 25):
 def extra_mask(wcs,mask,obj,custom):
     objid = obj['COADD_OBJECT_ID']
     extra = np.zeros_like(mask)
+
+    if not custom: return extra
     try: tomask = custom[objid]['mask']
     except KeyError: return extra
 
@@ -169,11 +322,27 @@ def extra_mask(wcs,mask,obj,custom):
         if x['type'] != 'circle':
             logging.warn("Unrecognized mask type: '%s'"%x['type'])
             continue
-        logging.info(f"Masking object at: {x['x']}, {x['y']}")
-        sel = (angsep(x['x'],x['y'],ra,dec) < x['radius'])
+        if x['unit'] == 'pix':
+            logging.info('Setting unit to pixel...')
+            sky = wcs.pixel_to_world(x['x'],x['y'])
+            ra_x = sky.ra.degree
+            dec_y = sky.dec.degree
+            sky = wcs.pixel_to_world(x['x']+x['radius'],x['y'])
+            radius = abs(sky.ra.degree - ra_x)
+        elif x['unit'] == 'deg':
+            logging.info('Setting unit to degree...')
+            ra_x = x['x']
+            dec_y = x['y']
+            radius = x['radius']
+        else:
+            unit = x['unit']
+            logging.warn(f'Unrecognized coordinate type: {unit}')
+            continue
+        logging.info(f"Masking object at: {ra_x}, {dec_y}")
+        #sel = (angsep(x['x'],x['y'],ra,dec) < x['radius'])
+        sel = (angsep(ra_x,dec_y,ra,dec) < radius)
+        logging.info(f"Circle drawn with radius: {x['radius']}")
 
-        #import pdb; pdb.set_trace()
-        
         extra[sel] = True
 
     return extra
@@ -230,7 +399,7 @@ def plot_segmap(config,obj,grp):
 
     outfile = os.path.join(config['galdir'],'segmap_{objid}.png').format(objid=objid)
     logging.info("Writing %s..."%outfile)
-    plt.savefig(outfile,dpi=150)
+    plt.savefig(outfile,dpi=100)
 
 if __name__ == "__main__":
     import argparse
@@ -253,11 +422,20 @@ if __name__ == "__main__":
     config = yaml.safe_load(open(args.config))
     bands = args.band if args.band else config['bands']
 
-    group = pyfits.open(config['grpfile'])[1].data.view(np.recarray)
     cat = pyfits.open(config['catfile'])[1].data.view(np.recarray)
     objids = np.asarray(args.objid)
 
-    custom = yaml.safe_load(open(os.path.join(config['tempdir'],config['custfile'])))
+
+    if config['grpfile']:
+        group = pyfits.open(config['grpfile'])[1].data.view(np.recarray)
+    else:
+        logging.debug('No groupfile found...')
+        group = None
+    
+    if config['custfile']:
+        custom = yaml.safe_load(open(os.path.join(config['tempdir'],config['custfile'])))
+    else:
+        custom = None
                 
     print("Generating cutouts for %i objects..."%len(objids))
     objects = cat[np.in1d(cat['COADD_OBJECT_ID'],objids)]
@@ -292,6 +470,7 @@ if __name__ == "__main__":
                 logging.info("Found %s; skipping..."%(outfile))
                 continue
 
+            # Pick up fits or fits.fz
             imgfile = glob.glob(tilepath+f'/*_{band}.fits.fz')[0]
             psffile = glob.glob(tilepath+f'/*_{band}_psfcat.psf')[0]
 
@@ -303,7 +482,7 @@ if __name__ == "__main__":
             #msk = img["MSK"].data
             #wgt = img["WGT"].data
 
-            wcs = WCS(pyfits.getheader(imgfile, ext=1))
+            wcs = WCS(pyfits.getheader(imgfile, extname='SCI'))
             psf = DES_PSFEx(psffile)
             hdr = {k:img['SCI'].header[k] for k in KEYWORDS}
 
@@ -319,7 +498,16 @@ if __name__ == "__main__":
                               
             segcut = Cutout2D(seg["SCI"].data, position=(x, y), size=(size,size), 
                               wcs=wcs, mode='partial',fill_value=1000000, copy=True)
-            
+
+            simdir = config.get('simdir')
+            if simdir:
+                logging.info("Replacing image with simulated data...")
+                simfile = glob.glob(simdir+f'/*_added_{band}.fits')[0]
+                #simfile = glob.glob(simdir+f'/*_temp_{band}.fits')[0]
+                sim = pyfits.open(simfile)
+                imgcut = Cutout2D(sim["SCI"].data, position=(x, y), size=(size,size),
+                                  wcs=wcs,mode='partial',fill_value=np.nan, copy=True)
+
             # Mask
             logging.debug("Creating bad mask...")
 
@@ -330,10 +518,11 @@ if __name__ == "__main__":
             mask[holes > 0] = True
 
             # Find any missing sources mostly g-band
-            sources = find_sources(imgcut.data,mask)
+            sources = find_sources(imgcut.data,mask,nsigma=np.inf)
 
             # Clear the segmap for the source/group of interest
             bad = clear_segmap(segcut.data,obj,group,bands,custom=custom)
+            
 
             # Any extra custom masking
             extra = extra_mask(mskcut.wcs,mask,obj,custom)
@@ -343,32 +532,21 @@ if __name__ == "__main__":
             bad[sources > 0] = 1
             bad[holes > 0] = 1
             bad[bad > 0] = 1
-            bad[extra > 0 ] = 1
+            p = len(bad[bad>0])
+            logging.debug(f'Before extra:{p}')
+            bad[extra > 0] = 1
+            p = len(bad[bad>0])
+            logging.debug(f'After extra:{p}')
 
             logging.debug("Creating sigma image...")
             # The DES weight plane is an inverse variance image
             sigcut = 1/np.sqrt(copy.deepcopy(wgtcut.data))
+            #sigcut = 1e5 * 1/np.sqrt(copy.deepcopy(wgtcut.data))
 
             # Write the psf image
             logging.debug("Creating psf image...")
             pos = galsim.PositionD(x,y)
             psfimg = psf.getPSFArray(pos)
-
-            #hdu = pyfits.PrimaryHDU(imgcut.data)
-            #hdu.header.update(hdr)
-            #hdu.header.update(imgcut.wcs.to_header())         
-            #hdu.header.update(EXTNAME='SCI')
-            #f = os.path.join(outdir,config['imgfile'].format(objid=objid,band=band))
-            #logging.info("Writing %s..."%f)
-            #hdu.writeto(f, overwrite=True)
-            # 
-            #hdu = pyfits.PrimaryHDU(bad)
-            #hdu.header.update(copy.deepcopy(img['MSK'].header))
-            #hdu.header.update(mskcut.wcs.to_header())
-            #hdu.header.update(EXTNAME="BAD")
-            #f = os.path.join(outdir,config['mskfile'].format(objid=objid,band=band))
-            #logging.info("Writing %s..."%f)
-            #hdu.writeto(f, overwrite=True)
 
             # Write multi-extension output
             hdulist = []

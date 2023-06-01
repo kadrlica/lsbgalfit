@@ -33,7 +33,7 @@ if __name__ == "__main__":
         outdir = config['galdir'].format(objid=objid)
         galfile = os.path.join(outdir,config['galfile']).format(objid=objid)
         resfile = os.path.join(outdir,config['resfile']).format(objid=objid)
-        feedme = os.path.join(outdir,config['feedme'])
+        feedme = os.path.join(outdir,config['feedfile'])
 
         if os.path.exists(resfile) and not args.force:
             logging.info("Found %s; skipping..."%resfile)

@@ -16,7 +16,7 @@ import astropy.io.fits as pyfits
 INDEX = """
 <html>
   <head>
-    <title>DES Y3 LSB Galaxies</title>
+    <title>DES Y6 LSB Galaxies</title>
 </head>
 <body>
 %(table)s
@@ -43,7 +43,7 @@ ROW = """
     <tr>
       <th>{idx}</th>
       <td>
-        <h4>COADD_OBJECT_ID: <a href="http://legacysurvey.org/viewer/?ra={RA}&dec={DEC}&layer=des-dr1&zoom=15">{COADD_OBJECT_ID}</a></h4>
+        <h4>COADD_OBJECT_ID: <a href="http://legacysurvey.org/viewer/?ra={RA}&dec={DEC}&layer=ls-dr10&zoom=15">{COADD_OBJECT_ID}</a></h4>
         <h4>RA,DEC: {RA:.4f}, {DEC:.4f}</h4>
         <h4>MAG_AUTO (g,r,i): {MAG_AUTO_G:.2f}, {MAG_AUTO_R:.2f}, {MAG_AUTO_I:.2f}</h4>
         <h4>MAG_GALFIT (g,r,i): {MAG_G:.2f}, {MAG_R:.2f}, {MAG_I:.2f}</h4>
