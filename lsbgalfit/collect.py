@@ -136,7 +136,7 @@ def read_result(args):
     out['FLAGS'] = ''
 
     custom=yaml.safe_load(open(os.path.join(config['tempdir'],config['custfile'])))
-    if objid in custom.keys():
+    if custom and objid in custom.keys():
         out['CUSTOM'] = True
 
     resfile = os.path.join(config['galdir'],config['resfile']).format(objid=objid)
@@ -221,5 +221,6 @@ if __name__ == "__main__":
     print("Missing results for %i objects."%np.isnan(out['MAG_G']).sum())
 
     outfile = config['outfile']
+    print(f"Writing {outfile}.")
     hdu = pyfits.BinTableHDU(data=out)
     hdu.writeto(outfile,overwrite=True)

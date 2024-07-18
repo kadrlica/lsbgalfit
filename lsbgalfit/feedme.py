@@ -41,8 +41,9 @@ def build_constraint(config, obj):
 
     # Update custom constraints
     custom=yaml.safe_load(open(os.path.join(config['tempdir'],config['custfile'])))
-    try: params.update(custom[objid]['constraint'])
-    except KeyError: pass
+    if custom:
+        try: params.update(custom[objid]['constraint']) 
+        except KeyError: pass
 
     # construct feedme
     filename = os.path.join(config['tempdir'],config['constfile'])
@@ -86,7 +87,7 @@ def build_feedme(config, obj):
     #reffout = ','.join('%.2f'%obj[f'FLUX_RADIUS_{band.upper()}'] for band in bands)
     reff    = np.max([obj[f'FLUX_RADIUS_{band.upper()}'] for band in bands])
     reffstr = '%.2f'%reff
-    ellip   = obj['B_IMAGE']/obj['A_IMAGE']
+    ellip   = obj['B_IMAGE']/obj['A_IMAGE'] # should be called "elongation" or "ratio"
     pa      = obj['THETA_J2000']
 
     hdr = pyfits.open(cutfile.format(objid=objid,band=bands[0]))['SCI'].header

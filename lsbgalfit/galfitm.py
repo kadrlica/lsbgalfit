@@ -182,7 +182,6 @@ def plot_results(filename,obj=None):
 
 def plot_segmap(config,obj,grp):
     objid = obj['COADD_OBJECT_ID']
-    group = grp[grp['LSBG_COADD_OBJECT_ID']==objid]
 
     cutfile = os.path.join(config['cutdir'],config['cutfile']).format(objid=objid,band='r')
     f = pyfits.open(cutfile)
@@ -204,23 +203,28 @@ def plot_segmap(config,obj,grp):
     norm = viz.ImageNormalize(imgcut.data, interval=viz.ZScaleInterval())
     plt.imshow(imgcut.data,origin='lower',norm=norm,cmap='gray')
 
-    vmin = group['OBJECT_NUMBER'].min() - 10
-    vmax = group['OBJECT_NUMBER'].max() + 10
-
-    array = np.ma.array(segcut.data,mask=segcut.data==0)
-    plt.imshow(array,origin='lower',cmap='tab20',vmin=vmin,vmax=vmax,alpha=0.3)
-    plt.colorbar(label='OBJECT_NUMBER')
-
     color='chartreuse'
     x,y = segcut.wcs.wcs_world2pix(obj['RA'],obj['DEC'],0)
     plt.annotate(obj['COADD_OBJECT_ID'],(x,y),fontsize=12,weight='bold',color=color)
     plt.scatter(x,y,marker='o',s=5,c=color,facecolor='none',edgecolor=color)
-    
-    for o in group:
-        if o['COADD_OBJECT_ID'] == objid: continue
-        x,y = segcut.wcs.wcs_world2pix(o['RA'],o['DEC'],0)
-        plt.annotate(o['COADD_OBJECT_ID'],(x,y),fontsize=8,color=color)
-        plt.scatter(x,y,marker='x',s=3,c=color)
+
+    vmin,vmax = None, None
+
+    if grp is not None:
+        group = grp[grp['LSBG_COADD_OBJECT_ID']==objid]
+        
+        vmin = group['OBJECT_NUMBER'].min() - 10
+        vmax = group['OBJECT_NUMBER'].max() + 10
+
+        for o in group:
+            if o['COADD_OBJECT_ID'] == objid: continue
+            x,y = segcut.wcs.wcs_world2pix(o['RA'],o['DEC'],0)
+            plt.annotate(o['COADD_OBJECT_ID'],(x,y),fontsize=8,color=color)
+            plt.scatter(x,y,marker='x',s=3,c=color)
+
+    array = np.ma.array(segcut.data,mask=segcut.data==0)
+    plt.imshow(array,origin='lower',cmap='tab20',vmin=vmin,vmax=vmax,alpha=0.3)
+    plt.colorbar(label='OBJECT_NUMBER')
 
     plt.xlim(0,size)
     plt.ylim(0,size)
@@ -229,7 +233,7 @@ def plot_segmap(config,obj,grp):
 
     outfile = os.path.join(config['galdir'],'segmap_{objid}.png').format(objid=objid)
     logging.info("Writing %s..."%outfile)
-    plt.savefig(outfile,dpi=150,bbox_inches='tight')
+    plt.savefig(outfile,dpi=100,bbox_inches=None)
 
 if __name__ == "__main__":
     import argparse
@@ -249,7 +253,11 @@ if __name__ == "__main__":
 
     config = yaml.safe_load(open(args.config))
     cat = pyfits.open(config['catfile'])[1].data.view(np.recarray)
-    grp = pyfits.open(config['grpfile'])[1].data.view(np.recarray)
+    if config['grpfile']:
+        grp = pyfits.open(config['grpfile'])[1].data.view(np.recarray)
+    else:
+        grp = None
+
     objids = np.array(args.objid)
 
     print("Running galfitm for %i objects..."%len(objids))

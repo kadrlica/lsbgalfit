@@ -16,7 +16,7 @@ import astropy.io.fits as pyfits
 INDEX = """
 <html>
   <head>
-    <title>DES Y3 LSB Galaxies</title>
+    <title>DES Y6 LSB Galaxies</title>
 </head>
 <body>
 %(table)s
@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     config = yaml.safe_load(open(args.config))
 
-    cat = pyfits.open(config['catfile'])[1].data.view(np.recarray)
+    cat = pyfits.open(config['outfile'])[1].data.view(np.recarray)
     objids = cat['COADD_OBJECT_ID']
 
     outdir = config['wwwdir']
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     # chi2nu
     outbase = 'chi2nu.html'
     outfile = os.path.join(outdir,outbase)
-    select = "(cat['CHI2NU_G'] > 3) | (cat['CHI2NU_R'] > 3) | (cat['CHI2NU_I'] > 3)"
+    select = "(cat['CHI2NU_G'] > 2) | (cat['CHI2NU_R'] > 2) | (cat['CHI2NU_I'] > 2)"
     cmd = f'www.py {args.config} --outfile {outfile} -s "{select}"'
     subprocess.call(cmd,shell=True)
     listrows.append(f'<li><a href="{outbase}">{outbase}</a></li>')
@@ -128,7 +128,7 @@ if __name__ == "__main__":
     # mof
     outbase = 'mof.html'
     outfile = os.path.join(outdir,outbase)
-    select = "cat['EXTENDED_CLASS_MOF'] == 0"
+    select = "cat['EXT_MASH'] == 0"
     cmd = f'www.py {args.config} --outfile {outfile} -s "{select}"'
     subprocess.call(cmd,shell=True)
     listrows.append(f'<li><a href="{outbase}">{outbase}</a></li>')
