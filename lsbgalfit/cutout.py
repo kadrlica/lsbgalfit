@@ -226,6 +226,9 @@ def clear_segmap(segmap,obj,cat,bands,custom=None):
     function is to stop shredding large objects. However, things become
     more complicated when we want to be sure not to include the light from
     foreground stars or globular clusters.
+    
+    From Kai:
+    Added functionality to add objects back onto the segmap
 
     """
     objid = obj['COADD_OBJECT_ID']
@@ -236,12 +239,12 @@ def clear_segmap(segmap,obj,cat,bands,custom=None):
     segmap[segmap == obj['OBJECT_NUMBER']] = 0
 
     if custom is not None:
-        try: 
-            group = cat[np.in1d(cat['COADD_OBJECT_ID'],custom[objid]['group'])]
+        try:
+            group = cat[np.in1d(cat['COADD_OBJECT_ID'],custom[objid]['remove'][0]['group'])]
             logging.info(f"Clearing custom group from segmap.")
             idx = np.in1d(segmap,group['OBJECT_NUMBER']).reshape(segmap.shape)
             segmap[idx] = 0
-        except KeyError: pass
+        except KeyError: pass 
 
     #if True:
         #return segmap
@@ -250,18 +253,34 @@ def clear_segmap(segmap,obj,cat,bands,custom=None):
     group = cat[cat['LSBG_COADD_OBJECT_ID'] == obj['COADD_OBJECT_ID']]
     ngroup = len(group)
     logging.debug(f'Found {ngroup} objects in group...')
+    
+    
 
     # Only deal with large objects
     flux_radius = np.max([obj[f'FLUX_RADIUS_{band.upper()}'] for band in bands])
     if flux_radius < 15:
         logging.debug("Skipping group...")
         logging.debug(f"flux_radius={flux_radius:.2f}")
+        # Re-mask objects that need to be added
+        try:
+            group = cat[np.in1d(cat['COADD_OBJECT_ID'],custom[objid]['add'][0]['group'])]
+            logging.info("Adding custom group from segmap: {}".format(group['COADD_OBJECT_ID']))
+            idx = np.in1d(segmap,group['OBJECT_NUMBER']).reshape(segmap.shape)
+            segmap[idx] = 1
+        except KeyError: pass
         return segmap
                       
     # Only deal with objects with lots of siblings
     if ngroup < 3: 
         logging.debug("Skipping group...")
         logging.debug(f"  Ngroup = {ngroup}")
+        # Re-mask objects that need to be added
+        try:
+            group = cat[np.in1d(cat['COADD_OBJECT_ID'],custom[objid]['add'][0]['group'])]
+            logging.info("Adding custom group from segmap: {}".format(group['COADD_OBJECT_ID']))
+            idx = np.in1d(segmap,group['OBJECT_NUMBER']).reshape(segmap.shape)
+            segmap[idx] = 1
+        except KeyError: pass
         return segmap
 
     for o in group:
@@ -282,6 +301,15 @@ def clear_segmap(segmap,obj,cat,bands,custom=None):
             continue
 
         logging.info("Clearing sibling from segmap: {}".format(o['COADD_OBJECT_ID']))
+        # Re-mask objects that need to be added
+        try:
+            group = cat[np.in1d(cat['COADD_OBJECT_ID'],custom[objid]['add'][0]['group'])]
+            if o['COADD_OBJECT_ID'] in group['COADD_OBJECT_ID']:
+                logging.info("Adding custom group from segmap: {}".format(group['COADD_OBJECT_ID']))
+                idx = np.in1d(segmap,group['OBJECT_NUMBER']).reshape(segmap.shape)
+                segmap[idx] = 1
+                continue
+        except KeyError: pass
         segmap[segmap == o['OBJECT_NUMBER']] = 0
 
     return segmap
@@ -452,8 +480,14 @@ if __name__ == "__main__":
         # Set the cutout size based on the minimum size in the config
         # and the flux radius (retaining even/odd size)
         flux_radius = np.max([obj[f'FLUX_RADIUS_{band.upper()}'] for band in bands])
-        size = config['size']
-        size = max(size, (flux_radius//5 + 1) * 50 + size%2)
+        
+        # Set object size if there is a custom size being given
+        try:
+            size = custom[obj['COADD_OBJECT_ID']]['size']
+            logging.info(f'Custom size given: {size}')
+        except KeyError:
+            size = config['size']
+            size = max(size, (flux_radius//5 + 1) * 50 + size%2)
 
         x,y = obj.XWIN_IMAGE,obj.YWIN_IMAGE
         logging.debug(f"Object located at: ({x:.2f}, {y:.2f})")
@@ -540,7 +574,8 @@ if __name__ == "__main__":
 
             logging.debug("Creating sigma image...")
             # The DES weight plane is an inverse variance image
-            sigcut = 1/np.sqrt(copy.deepcopy(wgtcut.data))
+            with np.errstate(divide='ignore'):
+                sigcut = 1/np.sqrt(copy.deepcopy(wgtcut.data))
             #sigcut = 1e5 * 1/np.sqrt(copy.deepcopy(wgtcut.data))
 
             # Write the psf image

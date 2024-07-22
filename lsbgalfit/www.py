@@ -62,13 +62,16 @@ ROW = """
 
 def check_formula(formula):
     """ Check that a formula is valid. """
-    if not (('cat[' in formula) and (']' in formula)):
+    if not (('cat[' in formula) and (']' in formula) or ('star_lsb' in formula)):
         msg = f'Invalid formula:\n {formula}'
         raise ValueError(msg)
 
 def eval_formula(cat,formula):
     logging.info(f"  Evaluating selection: {formula}")
     check_formula(formula)
+    if formula == 'star_lsb':
+        sel = pyfits.open(config['basedir']+'/'+config['starfile'])[1].data.view(np.recarray)
+        return sel
     sel = eval(formula)
     return sel
 
@@ -80,11 +83,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     config = yaml.safe_load(open(args.config))
-    cat = pyfits.open(config['outfile'])[1].data.view(np.recarray)
+    cat = pyfits.open(config['basedir']+'/'+config['outfile'])[1].data.view(np.recarray)
     
     if args.select:
         sel = eval_formula(cat,args.select)
-        cat = cat[sel]
+        if args.select == 'star_lsb':
+            cat = sel
+        else:
+            cat = cat[sel]
 
     objids = cat['COADD_OBJECT_ID']
     if args.objid:

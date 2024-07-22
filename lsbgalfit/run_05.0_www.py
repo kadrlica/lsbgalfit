@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     config = yaml.safe_load(open(args.config))
 
-    cat = pyfits.open(config['outfile'])[1].data.view(np.recarray)
+    cat = pyfits.open(config['basedir']+'/'+config['outfile'])[1].data.view(np.recarray)
     objids = cat['COADD_OBJECT_ID']
 
     outdir = config['wwwdir']
@@ -132,7 +132,15 @@ if __name__ == "__main__":
     cmd = f'www.py {args.config} --outfile {outfile} -s "{select}"'
     subprocess.call(cmd,shell=True)
     listrows.append(f'<li><a href="{outbase}">{outbase}</a></li>')
-
+    
+    # star
+    outbase = 'star.html'
+    outfile = os.path.join(outdir,outbase)
+    select = 'star_lsb'
+    cmd = f'www.py {args.config} --outfile {outfile} -s "{select}"'
+    subprocess.call(cmd,shell=True)
+    listrows.append(f'<li><a href="{outbase}">{outbase}</a></li>')
+    
     # Write the top level index file
     table = TABLE%dict(rows='\n'.join(tablerows))
     pages = LIST%dict(rows='\n'.join(listrows))
