@@ -74,7 +74,7 @@ if __name__ == "__main__":
         print((i,omin,omax))
         outfile = os.path.join(outdir,f'lsbg_{i:02d}.html')
         cmd = f'www.py {args.config} --outfile {outfile} --imin {imin} --imax {imax}'
-        if args.verbose: cmd += '-v'
+        if args.verbose: cmd += ' -v'
 
         logging.debug(cmd)
         subprocess.call(cmd,shell=True)

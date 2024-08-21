@@ -483,7 +483,9 @@ if __name__ == "__main__":
         
         # Set object size if there is a custom size being given
         try:
-            size = custom[obj['COADD_OBJECT_ID']]['size']
+            coeff = custom[obj['COADD_OBJECT_ID']]['size']
+            size = config['size']
+            size = max(size, coeff * (flux_radius//5 + 1) * 50 + size%2)
             logging.info(f'Custom size given: {size}')
         except KeyError:
             size = config['size']
