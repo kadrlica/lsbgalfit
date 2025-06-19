@@ -112,7 +112,8 @@ if __name__ == "__main__":
     # color
     outbase = 'color.html'
     outfile = os.path.join(outdir,outbase)
-    select = "((cat['MAG_G'] - cat['MAG_R']) > 1.5) | ((cat['MAG_G'] - cat['MAG_I']) > 1.5)"
+    select = "((cat['MAG_G'] - cat['MAG_R']) > 0.8) | ((cat['MAG_G'] - cat['MAG_I']) > 1.1)"
+    select += "| ((cat['MAG_G']-cat['MAG_R']) < 0.1) | ((cat['MAG_G']-cat['MAG_I']) < 0)"
     cmd = f'www.py {args.config} --outfile {outfile} -s "{select}"'
     subprocess.call(cmd,shell=True)
     listrows.append(f'<li><a href="{outbase}">{outbase}</a></li>')
