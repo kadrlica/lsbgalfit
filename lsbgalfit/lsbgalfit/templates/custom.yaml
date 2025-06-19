@@ -1,0 +1,25 @@
+#1274035653:
+  # 'group' is a list of coadd_object_ids to be removed from the segmap
+  #group: []
+  #group: [1274035653, 1274038633, 1274038956, 1274039208, 1274039477, 1274039538, 1274039563, 1274039946, 1274039960]
+
+  # 'mask' is a set of geometric shapes (I think only circle is
+  # supported) that will be masked in addition to the segmap.
+  #mask:
+    #- {type: circle, x: 36.01621638, y: -21.39827311, radius: 0.0004, unit: deg}
+    #- {type: circle, x: 36.0119798, y: -21.39775839, radius: 0.0004, unit: deg}
+    #- {type: circle, x: 36.01405991, y: -21.39684685, radius: 0.0004, unit: deg}
+
+#1398878685:
+  #group: [1398878685, 1398882208, 1398882289, 1398882612]
+  #group: []
+  #mask:
+    #- {type: circle, x: 54.02476, y: -17.8742, radius: 0.0004, unit: deg}
+
+### templates
+#  constraint:
+#    x_const : 25
+#    y_const : 25
+#  mask:
+#    - {type: circle, x: , y: , radius: 0.0010, unit: deg}
+

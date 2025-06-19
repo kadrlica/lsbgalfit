@@ -224,6 +224,3 @@ if __name__ == "__main__":
     print(f"Writing {outfile}.")
     hdu = pyfits.BinTableHDU(data=out)
     hdu.writeto(outfile,overwrite=True)
-    if np.isnan(out['MAG_G']).sum() != 0:
-        hdu = pyfits.BinTableHDU(data=out[np.isnan(out['MAG_G'])])
-        hdu.writeto('missing_LSBGs.fits',overwrite=True)
