@@ -47,8 +47,6 @@ ROW = """
         <h4>RA,DEC: {RA:.4f}, {DEC:.4f}</h4>
         <h4>MAG_AUTO (g,r,i): {MAG_AUTO_G:.2f}, {MAG_AUTO_R:.2f}, {MAG_AUTO_I:.2f}</h4>
         <h4>MAG_GALFIT (g,r,i): {MAG_G:.2f}, {MAG_R:.2f}, {MAG_I:.2f}</h4>
-        <h4>MU_MEAN_MODEL (g,r,i): {MU_MEAN_MODEL_G:.2f}, {MU_MEAN_MODEL_R:.2f}, {MU_MEAN_MODEL_I:.2f},</h4>
-        <h4>MU_MEAN_GALFIT (g,r,i): {MU_MEAN_G:.2f}, {MU_MEAN_R:.2f}, {MU_MEAN_I:.2f},</h4>
         <h4>COLOR_AUTO (g-r,g-i): {COLOR_AUTO_GR:.2f}, {COLOR_AUTO_GI:.2f}</h4>
         <h4>COLOR_GALFIT (g-r,g-i): {COLOR_GR:.2f}, {COLOR_GI:.2f}</h4>
         <h4>FLUX_RADIUS (g,r,i): {FLUX_RADIUS_G:.2f}, {FLUX_RADIUS_R:.2f}, {FLUX_RADIUS_I:.2f}</h4>
@@ -141,6 +139,7 @@ if __name__ == "__main__":
         params['COLOR_GI'] = obj['MAG_G']-obj['MAG_I']
         
         if objid in stars:
+            tablerows.append(ROW_STAR.format(**params))
             continue
         else:
             tablerows.append(ROW.format(**params))

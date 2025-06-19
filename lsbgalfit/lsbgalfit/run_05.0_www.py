@@ -116,14 +116,6 @@ if __name__ == "__main__":
     cmd = f'www.py {args.config} --outfile {outfile} -s "{select}"'
     subprocess.call(cmd,shell=True)
     listrows.append(f'<li><a href="{outbase}">{outbase}</a></li>')
-    
-    # sersic
-    outbase = 'sersic.html'
-    outfile = os.path.join(outdir,outbase)
-    select = "cat['N'] > 4"
-    cmd = f'www.py {args.config} --outfile {outfile} -s "{select}"'
-    subprocess.call(cmd,shell=True)
-    listrows.append(f'<li><a href="{outbase}">{outbase}</a></li>')
 
     # custom
     outbase = 'custom.html'
